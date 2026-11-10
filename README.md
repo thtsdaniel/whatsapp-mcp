@@ -146,7 +146,8 @@ Read-only removes the worst outcome. It does not make reading your chats risk-fr
 
 ```bash
 cd whatsapp-bridge && go vet ./... && go test ./... && go build -o whatsapp-bridge .
-scripts/verify-readonly.sh
+cd ../whatsapp-mcp-server && uv run python test_tools.py
+cd .. && scripts/verify-readonly.sh
 ```
 
 Pull requests are welcome for fixes and for keeping up with WhatsApp. A change that adds a send path, a write to the store from the MCP server, or a listener off loopback will not be merged; the script above is there to catch one by accident.

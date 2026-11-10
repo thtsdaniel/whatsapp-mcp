@@ -698,7 +698,12 @@
  )
 --- upstream/whatsapp-mcp-server/main.py
 +++ ours/whatsapp-mcp-server/main.py
-@@ -9,14 +9,17 @@
+@@ -1,3 +1,4 @@
++from dataclasses import asdict
+ from typing import List, Dict, Any, Optional
+ from mcp.server.fastmcp import FastMCP
+ from whatsapp import (
+@@ -9,14 +10,17 @@
      get_contact_chats as whatsapp_get_contact_chats,
      get_last_interaction as whatsapp_get_last_interaction,
      get_message_context as whatsapp_get_message_context,
@@ -720,8 +725,87 @@
  
  @mcp.tool()
  def search_contacts(query: str) -> List[Dict[str, Any]]:
-@@ -155,73 +158,6 @@
-     return context
+@@ -26,7 +30,7 @@
+         query: Search term to match against contact names or phone numbers
+     """
+     contacts = whatsapp_search_contacts(query)
+-    return contacts
++    return [asdict(contact) for contact in contacts]
+ 
+ @mcp.tool()
+ def list_messages(
+@@ -40,7 +44,7 @@
+     include_context: bool = True,
+     context_before: int = 1,
+     context_after: int = 1
+-) -> List[Dict[str, Any]]:
++) -> str:
+     """Get WhatsApp messages matching specified criteria with optional context.
+     
+     Args:
+@@ -67,7 +71,8 @@
+         context_before=context_before,
+         context_after=context_after
+     )
+-    return messages
++    # The reader returns formatted text, or an empty list after a database error
++    return messages or "No messages to display."
+ 
+ @mcp.tool()
+ def list_chats(
+@@ -93,10 +98,10 @@
+         include_last_message=include_last_message,
+         sort_by=sort_by
+     )
+-    return chats
++    return [asdict(chat) for chat in chats]
+ 
+ @mcp.tool()
+-def get_chat(chat_jid: str, include_last_message: bool = True) -> Dict[str, Any]:
++def get_chat(chat_jid: str, include_last_message: bool = True) -> Optional[Dict[str, Any]]:
+     """Get WhatsApp chat metadata by JID.
+     
+     Args:
+@@ -104,17 +109,17 @@
+         include_last_message: Whether to include the last message (default True)
+     """
+     chat = whatsapp_get_chat(chat_jid, include_last_message)
+-    return chat
++    return asdict(chat) if chat else None
+ 
+ @mcp.tool()
+-def get_direct_chat_by_contact(sender_phone_number: str) -> Dict[str, Any]:
++def get_direct_chat_by_contact(sender_phone_number: str) -> Optional[Dict[str, Any]]:
+     """Get WhatsApp chat metadata by sender phone number.
+     
+     Args:
+         sender_phone_number: The phone number to search for
+     """
+     chat = whatsapp_get_direct_chat_by_contact(sender_phone_number)
+-    return chat
++    return asdict(chat) if chat else None
+ 
+ @mcp.tool()
+ def get_contact_chats(jid: str, limit: int = 20, page: int = 0) -> List[Dict[str, Any]]:
+@@ -126,10 +131,10 @@
+         page: Page number for pagination (default 0)
+     """
+     chats = whatsapp_get_contact_chats(jid, limit, page)
+-    return chats
++    return [asdict(chat) for chat in chats]
+ 
+ @mcp.tool()
+-def get_last_interaction(jid: str) -> str:
++def get_last_interaction(jid: str) -> Optional[str]:
+     """Get most recent WhatsApp message involving the contact.
+     
+     Args:
+@@ -152,76 +157,9 @@
+         after: Number of messages to include after the target message (default 5)
+     """
+     context = whatsapp_get_message_context(message_id, before, after)
+-    return context
++    return asdict(context)
  
  @mcp.tool()
 -def send_message(
@@ -1380,17 +1464,21 @@
 -        sys.exit(1)
 --- upstream/whatsapp-mcp-server/pyproject.toml
 +++ ours/whatsapp-mcp-server/pyproject.toml
-@@ -1,8 +1,7 @@
+@@ -1,11 +1,10 @@
  [project]
  name = "whatsapp-mcp-server"
 -version = "0.1.0"
 -description = "Add your description here"
 -readme = "README.md"
-+version = "1.0.0"
++version = "1.0.1"
 +description = "Read-only MCP server over a local WhatsApp message store"
  requires-python = ">=3.11"
  dependencies = [
      "httpx>=0.28.1",
+-    "mcp[cli]>=1.6.0",
++    "mcp[cli]>=1.28.1,<2",
+     "requests>=2.32.3",
+ ]
 --- upstream/.gitignore
 +++ ours/.gitignore
 @@ -1,3 +1,26 @@

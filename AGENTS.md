@@ -8,7 +8,7 @@ Patched copy of lharries/whatsapp-mcp at upstream commit `7d6a06dcdce1f01dfb24f6
 ## Stack + versions
 
 - Bridge: Go 1.26+, CGO on, `go.mau.fi/whatsmeow v0.0.0-20261017175727-b2b1e71d45e2`, `github.com/mattn/go-sqlite3 v1.14.52`.
-- MCP server: Python 3.11 via uv, `mcp[cli]`, `requests`. Entry `whatsapp-mcp-server/main.py`.
+- MCP server: Python 3.11 via uv, `mcp[cli]` 1.x (`>=1.28.1,<2`), `requests`. Entry `whatsapp-mcp-server/main.py`.
 
 ## Commands
 
@@ -17,6 +17,7 @@ Patched copy of lharries/whatsapp-mcp at upstream commit `7d6a06dcdce1f01dfb24f6
 - Format check: `cd whatsapp-bridge && gofmt -l .` (must print nothing)
 - Run bridge (first run prints the QR): `cd whatsapp-bridge && ./whatsapp-bridge`. Must run from `whatsapp-bridge/`, the store path is relative.
 - MCP deps: `cd whatsapp-mcp-server && uv sync`
+- Test MCP tools (synthetic store, never the real one): `cd whatsapp-mcp-server && uv run python test_tools.py`
 - Read-only gate: `scripts/verify-readonly.sh` (run after every change; CI runs it too)
 - Regenerate the upstream diff after changing any file upstream also has: `scripts/make-upstream-diff.sh` (clones upstream, needs network).
 - No lint config, no deploy. Runs locally only.
@@ -25,10 +26,10 @@ Patched copy of lharries/whatsapp-mcp at upstream commit `7d6a06dcdce1f01dfb24f6
 
 - `whatsapp-bridge/main.go`: linked-device client, writes every message into `store/messages.db`, serves `POST /api/download` on 127.0.0.1:8080. `main_test.go`: file-name, URL and request-guard tests.
 - `whatsapp-bridge/store/`: `whatsapp.db` (the linked-device session) and `messages.db` (all chats). Git-ignored.
-- `whatsapp-mcp-server/main.py`: the 9 MCP tools. `whatsapp.py`: SQLite reads (opened `mode=ro`) plus the one download call.
+- `whatsapp-mcp-server/main.py`: the 9 MCP tools. `whatsapp.py`: SQLite reads (opened `mode=ro`) plus the one download call. `test_tools.py`: calls every tool through the MCP call path against a temporary store.
 - `scripts/make-upstream-diff.sh`: rewrites `docs/changes-from-upstream.diff` against the pinned upstream commit.
 - `scripts/verify-readonly.sh`: fails when a send path, a second route, a non-loopback listener, a writing SQL statement or a tenth tool appears.
-- `.github/workflows/ci.yml`: gofmt, vet, test, build, and the read-only gate.
+- `.github/workflows/ci.yml`: gofmt, vet, test, build, the read-only gate and the MCP tool test.
 - `docs/changes-from-upstream.diff`: every line changed against upstream. `docs/UPSTREAM-README.md`: upstream's own README.
 
 ## Constraints + do-not-touch
@@ -48,6 +49,7 @@ Patched copy of lharries/whatsapp-mcp at upstream commit `7d6a06dcdce1f01dfb24f6
 - Media 403 came from dropping the signed query string in `extractDirectPathFromURL`; it now keeps `?ccb=...&oh=...`.
 - Document file names come from the sender; `safeMediaFilename` keeps only the base name.
 - The REST server only starts after WhatsApp connects, so nothing listens on 8080 before pairing.
+- Every tool in `main.py` must return exactly what its return type says (dataclasses go through `asdict`). Newer 1.x versions of the MCP library validate tool output against that type and a mismatch fails the call (12 of 14 calls failed on 1.30.0 before the fix; upstream issue #215 reports it from 1.10). Keep `mcp` below 2: 2.x renamed `FastMCP` and needs a port.
 - Never `print()` to stdout in the MCP server: stdout is the MCP protocol. Use `_log` (stderr).
 - Chat and sender names go through `_display_name` in `whatsapp.py`, which reads `store/whatsapp.db` read-only (only `whatsmeow_lid_map` and `whatsmeow_contacts`). That file also holds the session keys; never select from any other table.
 - MCP tools appear only in client sessions started after the server is registered. The bridge must be running for `download_media`; reads work from the store alone.

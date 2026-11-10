@@ -42,12 +42,19 @@ if grep -nE '0\.0\.0\.0|Sprintf\(":%d"' "$BRIDGE"; then
 fi
 echo "ok  listener bound to 127.0.0.1"
 
-# 5. The MCP server opens every database read-only and writes no SQL.
-if grep -n 'sqlite3\.connect(' "$SERVER"/*.py | grep -v 'mode=ro'; then
+# 5. The MCP server is two source files, opens every database read-only and
+#    writes no SQL. test_tools.py is the one other file: it builds a throwaway
+#    store in a temporary folder and is never loaded by the server.
+sources=$(cd "$SERVER" && ls *.py | tr '\n' ' ' | sed 's/ $//')
+[ "$sources" = "main.py test_tools.py whatsapp.py" ] || fail "unexpected Python files in the MCP server: $sources"
+if grep -n 'sqlite3\.connect(' "$SERVER"/main.py "$SERVER"/whatsapp.py | grep -v 'mode=ro'; then
   fail "a database is opened without mode=ro"
 fi
-if grep -niE '\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE)\b[^a-z]' "$SERVER"/*.py | grep -viE '^\S+:\s*#|""".*"""'; then
+if grep -niE '\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE)\b[^a-z]' "$SERVER"/main.py "$SERVER"/whatsapp.py | grep -viE '^\S+:\s*#|""".*"""'; then
   fail "the MCP server contains a writing SQL statement"
+fi
+if grep -nE 'import +test_tools|from +test_tools' "$SERVER"/main.py "$SERVER"/whatsapp.py; then
+  fail "the MCP server loads the test file"
 fi
 echo "ok  MCP server opens the store read-only and writes no SQL"
 

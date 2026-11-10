@@ -35,3 +35,5 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --locked --directory whatsapp-mcp-server
       - run: scripts/verify-readonly.sh
+      - name: Call every MCP tool against a synthetic store
+        run: uv run --directory whatsapp-mcp-server python test_tools.py

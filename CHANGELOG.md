@@ -10,6 +10,21 @@ Format: Keep a Changelog. Base: lharries/whatsapp-mcp at `7d6a06dcdce1f01dfb24f6
 
 ### Fixed
 
+## [1.0.1] - 2026-11-10
+
+### Added
+
+- `whatsapp-mcp-server/test_tools.py`: calls every MCP tool through the real MCP call path against a synthetic store built in a temporary folder, and CI runs it. It fails when a tool returns something its return type does not allow.
+
+### Changed
+
+- Every Python dependency is upgraded in `uv.lock`, and `mcp` is held on its patched 1.x line (`>=1.28.1,<2`). The lockfile inherited from upstream pinned versions with 27 published advisories in GitHub's advisory database (anyio, certifi, h11, idna, mcp, python-dotenv, requests, starlette, urllib3), three of them rated critical. The reporter of upstream #215 had flagged this.
+- `scripts/verify-readonly.sh` checks the two server source files by name and fails if another Python file appears in the server folder.
+
+### Fixed
+
+- Tools returned values that did not match their declared return types (dataclasses where a dict was declared, text where a list was declared). MCP 1.6.0 let that through; on the patched 1.30.0 it failed 12 of 14 tool calls. Each tool now returns what its type says. Reported in upstream #215.
+
 ## [1.0.0] - 2026-11-10
 
 First public release. Everything below is measured against the upstream base commit.

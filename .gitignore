@@ -1,3 +1,26 @@
+# The local message store and linked-device session: every chat and the
+# session keys. Never commit.
+whatsapp-bridge/store/
 *.db
+*.db-shm
+*.db-wal
+
+# Bridge binaries
+whatsapp-bridge/whatsapp-bridge
+whatsapp-bridge/whatsapp-bridge.prev
+whatsapp-bridge/whatsapp-bridge.exe
+
+# Local client config and logs
 claude_desktop_config.json
 whatsapp.log
+*.log
+
+# Python
+.venv/
+__pycache__/
+*.py[oc]
+
+# OS and editors
+.DS_Store
+.vscode/
+.idea/
